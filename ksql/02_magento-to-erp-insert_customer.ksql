@@ -1,0 +1,117 @@
+CREATE STREAM source_magento_customer (
+        value STRUCT<
+            id STRING,
+            confirmation STRING,
+            email STRING,
+            taxvat STRING,
+            firstname STRING,
+            lastname STRING,
+            addresses ARRAY<
+                STRUCT<
+                    street ARRAY<STRING>,
+                    city STRING,
+                    postcode STRING,
+                    country_id STRING,
+                    telephone STRING
+                >
+            >,
+            custom_attributes ARRAY<
+                STRUCT<
+                    attribute_code STRING,
+                    value STRING
+                >
+            >
+        >
+    ) WITH (
+        KAFKA_TOPIC='source-magento-customer',
+        PARTITIONS=1,
+        KEY_FORMAT='JSON',
+        VALUE_FORMAT='JSON'
+    );
+
+
+CREATE STREAM magento_customer_schema
+   WITH (
+      KAFKA_TOPIC='magento-customer-schema',
+      PARTITIONS=1,
+      KEY_FORMAT='AVRO',
+      VALUE_FORMAT='AVRO'
+   )
+   AS SELECT
+      value->id AS ID,
+      value->confirmation AS confirmation,
+      value->email AS email,
+      value->firstname AS firstname,
+      value->lastname AS lastname,
+      value->taxvat AS taxvat,
+      value->addresses[1]->street[1] AS street,
+      value->addresses[1]->city AS city,
+      value->addresses[1]->postcode AS postcode,
+      value->addresses[1]->country_id AS country,
+      value->addresses[1]->telephone AS telephone,
+      value->custom_attributes[1]->value AS status
+   FROM source_magento_customer;
+
+
+CREATE TABLE magento_customer_pending
+   WITH (
+      KAFKA_TOPIC='magento-customer-pending',
+      PARTITIONS=1,
+      KEY_FORMAT='AVRO',
+      VALUE_FORMAT='AVRO'
+   )
+   AS SELECT
+      ID AS ID,
+      LATEST_BY_OFFSET(email) AS email,
+      LATEST_BY_OFFSET(firstname) AS firstname,
+      LATEST_BY_OFFSET(lastname) AS lastname,
+      LATEST_BY_OFFSET(taxvat) AS taxvat,
+      LATEST_BY_OFFSET(street) AS street,
+      LATEST_BY_OFFSET(city) AS city,
+      LATEST_BY_OFFSET(postcode) AS postcode,
+      LATEST_BY_OFFSET(country) AS country,
+      LATEST_BY_OFFSET(telephone) AS telephone,
+      LATEST_BY_OFFSET(status) AS status
+   FROM magento_customer_schema
+   WHERE status='pending'
+   GROUP BY ID;
+
+
+CREATE TABLE magento_customer_complete
+   WITH (
+      KAFKA_TOPIC='magento-customer-complete',
+      PARTITIONS=1,
+      KEY_FORMAT='AVRO',
+      VALUE_FORMAT='AVRO'
+   )
+   AS SELECT
+      ID AS ID,
+      LATEST_BY_OFFSET(email) AS email
+   FROM magento_customer_schema
+   WHERE status='approved' AND confirmation IS NULL
+   GROUP BY ID;
+
+
+CREATE TABLE sink_erp_crm_customer
+   WITH (
+      KAFKA_TOPIC='sink-erp-crm-customer',
+      PARTITIONS=1,
+      KEY_FORMAT='AVRO',
+      VALUE_FORMAT='AVRO'
+   )
+   AS SELECT
+      p.ID AS `ID`,
+      p.email AS `Email`,
+      p.firstname AS `Firstname`,
+      p.lastname AS `Lastname`,
+      p.taxvat AS `Taxvat`,
+      REGEXP_EXTRACT('(.*)( )(\d*\w?)', p.street, 1) AS `Street`,
+      COALESCE(REGEXP_EXTRACT('(.*)( )(\d*\w?)', p.street, 3), '0') AS `HouseNumber`,
+      p.city AS `City`,
+      p.postcode AS `Postcode`,
+      p.country AS `CountryCode`,
+      p.telephone AS `Telephone`
+   FROM magento_customer_pending p
+    JOIN magento_customer_complete c
+    ON p.ID = c.ID;
+

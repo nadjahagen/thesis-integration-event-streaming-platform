@@ -1,0 +1,28 @@
+{
+  "name" : "http_source_magento",
+  "config" : {
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false",
+    "connector.class" : "com.github.castorm.kafka.connect.http.HttpSourceConnector",
+    "kafka.topic": "source-magento-customer",
+    "http.request.url": "http://localhost:80/rest/V1/customers/search",
+    "http.timer.interval.millis": 30000,
+    "http.timer.catchup.interval.millis": 10000,
+    "http.request.headers": "Authorization: Bearer ${MAGENTO_INTEGRATION_TOKEN}",
+    "http.request.params": "searchCriteria[filterGroups][0][filters][0][field]=updated_at & searchCriteria[filterGroups][0][filters][0][value]=${offset.timestamp} & searchCriteria[filterGroups][0][filters][0][conditionType]=gt & searchCriteria[sortOrders][0][field]=updated_at & searchCriteria[sortOrders][0][direction]=ASC",
+    "http.client.connection.timeout.millis": 5000,
+    "http.client.read.timeout.millis": 5000,
+    "http.client.connection.ttl.millis": 300000,
+    "http.offset.initial": "timestamp=2000-01-01T00:00:00Z",
+    "http.response.list.pointer": "/items",
+    "http.response.record.offset.pointer": "key=/id,timestamp=/updated_at",
+    "http.response.record.timestamp.parser": "com.github.castorm.kafka.connect.http.response.timestamp.NattyTimestampParser",
+    "http.response.record.timestamp.parser.zone": "UTC",
+    "http.record.filter.factory": "com.github.castorm.kafka.connect.http.record.PassthroughRecordFilterFactory",
+    "transforms": "expand",
+    "transforms.expand.type": "com.redhat.insights.expandjsonsmt.ExpandJSON$Value",
+    "transforms.expand.sourceFields": "value"
+  }
+}

@@ -1,0 +1,89 @@
+CREATE TABLE source_erp_customer (
+    CustomerID INT,
+    UpdatedAt BIGINT,
+    CreatedAt BIGINT,
+    Firstname STRING,
+    Lastname STRING,
+    Email STRING PRIMARY KEY,
+    Taxvat STRING,
+    Street STRING,
+    HouseNumber STRING,
+    City STRING,
+    Postcode STRING,
+    CountryCode STRING,
+    Telephone STRING,
+    AttributeCode STRING,
+    Value STRING,
+    DefaultBilling STRING,
+    DefaultShipping STRING
+)WITH (
+         KAFKA_TOPIC='source-erp-customer',
+         KEY_FORMAT='KAFKA',
+         VALUE_FORMAT='AVRO'
+);
+
+CREATE TABLE source_crm_customer (
+    CustomerID INT,
+    UpdatedAt BIGINT,
+    CreatedAt BIGINT,
+    Firstname STRING,
+    Lastname STRING,
+    Email STRING PRIMARY KEY,
+    Taxvat STRING,
+    Street STRING,
+    HouseNumber STRING,
+    City STRING,
+    Postcode STRING,
+    CountryCode STRING,
+    Telephone STRING,
+    AttributeCode STRING,
+    Value STRING,
+    DefaultBilling STRING,
+    DefaultShipping STRING
+)WITH (
+         KAFKA_TOPIC='source-crm-customer',
+         KEY_FORMAT='KAFKA',
+         VALUE_FORMAT='AVRO'
+);
+
+
+CREATE TABLE sink_magento_customer_insert
+   WITH (
+      KAFKA_TOPIC='sink-magento-customer-insert',
+      PARTITIONS=1,
+      KEY_FORMAT='KAFKA',
+      VALUE_FORMAT='AVRO'
+   )
+   AS SELECT
+      e.Email,
+      STRUCT (
+         `firstname` := e.Firstname,
+         `lastname` := e.Lastname,
+         `email` := e.Email,
+         `taxvat` := e.Taxvat,
+         `group_id` := 1,
+         `website_id` := 1,
+         `addresses` := ARRAY[
+            STRUCT(
+                `default_billing` := COALESCE(e.DefaultBilling, 'true'),
+                `default_shipping` := COALESCE(e.DefaultShipping, 'true'),
+                `firstname` := e.Firstname,
+                `lastname` := e.Lastname,
+                `countryId` := e.CountryCode,
+                `postcode` := e.Postcode,
+                `city` := e.City,
+                `street` := ARRAY[CONCAT_WS(' ', e.Street, e.HouseNumber)],
+                `telephone` := e.Telephone
+            )
+         ],
+         `custom_attributes` := ARRAY[
+            STRUCT(
+               `attribute_code` := COALESCE(e.AttributeCode, 'is_approved'),
+               `value` := COALESCE(e.Value, 'approved')
+            )
+         ]
+      ) AS `customer`
+   FROM source_erp_customer e
+   JOIN source_crm_customer c
+       ON e.Email = c.Email;
+

@@ -1,0 +1,29 @@
+{
+  "name" : "http_sink_magento_put",
+  "config" : {
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false",
+    "key.converter.schema.registry.url": "http://localhost:8081",
+    "value.converter.schema.registry.url": "http://localhost:8081",
+    "connector.class" : "io.confluent.connect.http.HttpSinkConnector",
+    "topics": "sink-magento-customer-update",
+    "tasks.max" : "1",
+    "confluent.topic.bootstrap.servers": "localhost:9092",
+    "confluent.topic.replication.factor": 1,
+    "reporter.bootstrap.servers": "localhost:9092",
+    "reporter.result.topic.replication.factor": 1,
+    "reporter.error.topic.replication.factor": 1,
+    "reporter.result.topic.name": "${connector}-success",
+    "reporter.error.topic.name": "${connector}-error",
+    "behavior.on.error": "log",
+    "poll.interval.ms": 5000,
+    "max.retries": 3,
+    "request.body.format": "json",
+    "batch.json.as.array": "false",
+    "http.api.url": "http://localhost:80/rest/V1/customers/${key}",
+    "request.method": "PUT",
+    "headers": "Content-Type: application/json|Authorization: Bearer ${MAGENTO_INTEGRATION_TOKEN}"
+  }
+}

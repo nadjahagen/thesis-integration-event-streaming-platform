@@ -1,0 +1,31 @@
+ARG VERSION_CONFLUENT
+
+FROM confluentinc/cp-server-connect-base:${VERSION_CONFLUENT}
+
+USER root
+
+ENV JDBC_DIR=/usr/share/confluent-hub-components/confluentinc-kafka-connect-jdbc/lib
+ENV PLUGINS_DIR=/etc/custom/plugins
+RUN mkdir -p ${PLUGINS_DIR}
+
+ARG CONNECTORS=""
+RUN for c in ${CONNECTORS}; do confluent-hub install --no-prompt $c; done;
+
+# install MariaDB Driver: https://docs.confluent.io/kafka-connect-jdbc/current/index.html#general-guidelines
+RUN wget -qP ${JDBC_DIR} https://dlm.mariadb.com/1785291/connectors/java/connector-java-2.7.4/mariadb-java-client-2.7.4.jar
+
+# install Castorm HTTP Source Connector (v0.8.11 is not available at Confluent Hub, therefore manual installation)
+RUN mkdir -p ${PLUGINS_DIR}/castorm-kafka-connect-http && \
+    curl -fSL -o /tmp/plugin.tar.gz \
+    https://github.com/castorm/kafka-connect-http/releases/download/v0.8.11/kafka-connect-http-0.8.11-plugin.tar.gz && \
+    tar -xzf /tmp/plugin.tar.gz -C ${PLUGINS_DIR}/castorm-kafka-connect-http && \
+    rm -f /tmp/plugin.tar.gz;
+
+# install RedHat ExpandJSON Plugin
+RUN mkdir -p ${PLUGINS_DIR}/redhat-expandjson && \
+    curl -fSL -o /tmp/plugin.tar.gz \
+    https://github.com/RedHatInsights/expandjsonsmt/releases/download/0.0.7/kafka-connect-smt-expandjsonsmt-0.0.7.tar.gz && \
+    tar -xzf /tmp/plugin.tar.gz -C ${PLUGINS_DIR}/redhat-expandjson && \
+    rm -f /tmp/plugin.tar.gz;
+
+USER appuser

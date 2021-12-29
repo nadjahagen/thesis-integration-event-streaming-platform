@@ -1,0 +1,93 @@
+version: '2.4'
+services:
+
+  #############################################################
+  # Database for Magento                                      #
+  #############################################################
+  magento-db:
+    hostname: magento-db
+    container_name: magento-db
+    image: docker.io/bitnami/mariadb:10.3
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - MARIADB_USER=bn_magento
+      - MARIADB_DATABASE=bitnami_magento
+    volumes:
+      - 'magento-db-data:/bitnami/mariadb'
+    healthcheck:
+      test:
+        [
+            "CMD",
+            "mysqladmin",
+            "ping",
+            "-h",
+            "localhost"
+        ]
+      timeout: 10s
+      retries: 8
+    networks:
+      - thesis
+
+  #############################################################
+  # Magento Onlineshop                                        #
+  #############################################################
+  magento:
+    container_name: magento
+    hostname: magento
+    image: novatec/magento:latest
+    build:
+      context: .
+    ports:
+      - '80:8080'
+      - '443:8443'
+      - '587:587'
+    environment:
+      - MAGENTO_HOST=localhost
+      - MAGENTO_DATABASE_HOST=magento-db
+      - MAGENTO_DATABASE_PORT_NUMBER=3306
+      - MAGENTO_DATABASE_USER=bn_magento
+      - MAGENTO_DATABASE_NAME=bitnami_magento
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT_NUMBER=9200
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - 'magento-data:/bitnami/magento'
+    depends_on:
+      - magento-db
+      - elasticsearch
+    healthcheck:
+      test: "curl -f -X GET 'http://localhost:8080/'"
+      timeout: 10s
+      retries: 8
+    networks:
+      - thesis
+
+  #############################################################
+  # Elasticsearch for Magento search functionalities          #
+  #############################################################
+  elasticsearch:
+    container_name: magento-elasticsearch
+    image: docker.io/bitnami/elasticsearch:7
+    volumes:
+      - 'elasticsearch-data:/bitnami/elasticsearch/data'
+    healthcheck:
+      test: "curl -f -X GET 'http://localhost:9200/'"
+      timeout: 10s
+      retries: 8
+    networks:
+      - thesis
+
+volumes:
+  magento-db-data:
+    driver: local
+  magento-data:
+    driver: local
+  elasticsearch-data:
+    driver: local
+
+networks:
+  thesis:
+    external: true
+

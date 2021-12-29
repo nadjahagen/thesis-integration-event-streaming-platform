@@ -1,0 +1,69 @@
+#############################################################
+# Kafka Connect Connectors                                 #
+#############################################################
+---
+version: '2.4'
+services:
+
+  connect:
+    image: novatec/kafka-connect-thesis:${VERSION_CONFLUENT}
+    build:
+      context: .
+      dockerfile: Dockerfile.connect
+      args:
+        VERSION_CONFLUENT: ${VERSION_CONFLUENT}
+        CONNECTORS: |-
+          confluentinc/kafka-connect-jdbc:10.0.1
+          confluentinc/kafka-connect-http:1.5.0
+    hostname: connect
+    container_name: kafka-connect
+    restart: always
+    network_mode: "host"
+    ports:
+      - 8083:8083
+      - 18083:8083
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVER}
+      CONNECT_CUB_KAFKA_TIMEOUT: 60
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_REST_PORT: 8083 # (default: 8083)
+      CONNECT_GROUP_ID: thesis_connect
+      CONNECT_CONFIG_STORAGE_TOPIC: thesis-configs # (required)
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1 # (default: 3)
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000 # (default: 60000)
+      CONNECT_OFFSET_STORAGE_TOPIC: thesis-offsets # (required)
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1 # (default: 3)
+      CONNECT_STATUS_STORAGE_TOPIC: thesis-status # (required)
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1 # (default: 3)
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components,/etc/kafka-connect/jars,/etc/custom/plugins
+    healthcheck:
+      test: test $$(curl -s -o /dev/null -w %{http_code} http://localhost:8083/connectors) -eq 200 || exit 1
+      start_period: 60s
+      interval: 20s
+      timeout: 18s
+      retries: 10
+
+  connector-deploy:
+    image: novatec/connector-deploy-thesis:${VERSION_CONFLUENT}
+    build:
+      context: .
+      dockerfile: Dockerfile.deploy
+      args:
+        VERSION_CONFLUENT: ${VERSION_CONFLUENT}
+    container_name: connector-deploy
+    restart: on-failure
+    network_mode: "host"
+    depends_on:
+      connect:
+        condition: service_healthy
+    environment:
+      CONNECT_REST_API_URL: http://localhost:8083
+      KAFKA_BOOTSTRAP_SERVER: ${KAFKA_BOOTSTRAP_SERVER}
+    volumes:
+      - ./config:/connectors-config
+    command:
+      - /connectors-config/connectors-deploy.sh

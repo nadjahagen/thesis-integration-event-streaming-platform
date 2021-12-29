@@ -1,0 +1,26 @@
+version: '2.4'
+services:
+  #############################################################
+  # Maria DB for ERP system                                   #
+  #############################################################
+  erp-db:
+    hostname: erp-db
+    container_name: erp-db
+    image: mariadb:10.5.9
+    restart: always
+    ports:
+      - 3307:3306
+    volumes:
+      - ../db/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+    environment:
+      TZ: Europe/Berlin
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_DATABASE: erpSys
+      MYSQL_USER: erpSys
+      MYSQL_PASSWORD: admin
+    networks:
+      - thesis
+
+networks:
+  thesis:
+    external: true

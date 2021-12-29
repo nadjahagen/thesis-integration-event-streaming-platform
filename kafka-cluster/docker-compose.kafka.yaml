@@ -1,0 +1,118 @@
+#############################################################
+# Confluent Community Platform (single instances)           #
+#############################################################
+---
+version: '2.4'
+services:
+
+  #############################################################
+  # Apache Zookeeper                                          #
+  #############################################################
+  zookeeper:
+    image: confluentinc/cp-zookeeper:${VERSION_CONFLUENT}
+    hostname: zookeeper
+    container_name: zookeeper
+    restart: always
+    ports:
+      - 12181:2181
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    healthcheck:
+      test: zookeeper-shell localhost:2181 ls / >/dev/null 2>&1 || exit 1
+      start_period: 10s
+      interval: 20s
+      timeout: 18s
+      retries: 10
+
+  #############################################################
+  # Confluent Kafka Broker                                    #
+  #############################################################
+  kafka:
+    image: confluentinc/cp-server:${VERSION_CONFLUENT}
+    hostname: kafka
+    container_name: kafka
+    restart: always
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - 9092:9092
+      - 19092:19092
+    environment:
+      KAFKA_BROKER_ID: 1 # (default: -1)
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT, PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:19092, PLAINTEXT_HOST://localhost:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false" # (default: true)
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 # (default: 3)
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1 # (default: 3)
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1 # (default: 2)
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1 # (default 3)
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081 # (default: unset)
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1 # (default: 3)
+    healthcheck:
+      test: "(kafka-topics --bootstrap-server localhost:9092 --describe --topic _confluent-license | grep '_confluent-license.*Isr: [0-9]\\+' >/dev/null 2>&1) || exit 1"
+      start_period: 20s
+      interval: 30s
+      timeout: 25s
+      retries: 10
+
+  #############################################################
+  # Confluent Schema Registry                                 #
+  #############################################################
+  schema-registry:
+    image: confluentinc/cp-schema-registry:${VERSION_CONFLUENT}
+    hostname: schema-registry
+    container_name: schema-registry
+    restart: always
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - 8081:8081
+      - 18081:8081
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:19092
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1 # (default: 3)
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: test $$(curl -s -o /dev/null -w %{http_code}  http://localhost:8081/subjects) -eq 200 || exit 1
+      start_period: 10s
+      interval: 20s
+      timeout: 18s
+      retries: 10
+
+  #############################################################
+  # Confluent ksqlDB Server                                   #
+  #############################################################
+  ksqldb-server:
+    image: confluentinc/ksqldb-server:0.19.0
+    hostname: ksqldb
+    container_name: ksqldb-server
+    restart: always
+    ports:
+      - 8089:8088
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    network_mode: "host"
+    environment:
+      KSQL_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVER} # (default: localhost:9092)
+      KSQL_KSQL_STREAMS_AUTO_OFFSET_RESET: "earliest" # (default: latest)
+      KSQL_LISTENERS: http://0.0.0.0:8089 # (default: http://0.0.0.0:8088)
+      KSQL_KSQL_SCHEMA_REGISTRY_URL: http://localhost:8081
+      KSQL_CACHE_MAX_BYTES_BUFFERING: 0
+    healthcheck:
+      test: test $$(curl -s -o /dev/null -w %{http_code} http://localhost:8089/healthcheck) -eq 200 || exit 1
+      start_period: 45s
+      interval: 20s
+      timeout: 18s
+      retries: 10
+
+networks:
+  default:
+    name: ${DOMAIN_NAME}

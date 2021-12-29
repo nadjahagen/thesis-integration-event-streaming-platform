@@ -1,0 +1,30 @@
+{
+  "name" : "jdbc_source_crm",
+  "config" : {
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false",
+    "key.converter.schema.registry.url": "http://localhost:8081",
+    "value.converter.schema.registry.url": "http://localhost:8081",
+    "connector.class" : "io.confluent.connect.jdbc.JdbcSourceConnector",
+    "tasks.max" : "1",
+    "connection.url": "jdbc:mariadb://localhost:3308/crmSys",
+    "connection.user": "root",
+    "connection.password": "admin",
+    "dialect.name": "MySqlDatabaseDialect",
+    "schema.pattern": "crmSys",
+    "table.types": "TABLE",
+    "table.whitelist": "customer",
+    "mode": "timestamp",
+    "timestamp.column.name": "UpdatedAt",
+    "poll.interval.ms": 5000,
+    "topic.prefix": "source-crm-",
+    "db.timezone": "Europe/Berlin",
+    "transforms": "createkey, ExtractField",
+    "transforms.createkey.type": "org.apache.kafka.connect.transforms.ValueToKey",
+    "transforms.createkey.fields": "Email",
+    "transforms.ExtractField.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+    "transforms.ExtractField.field": "Email"
+  }
+}

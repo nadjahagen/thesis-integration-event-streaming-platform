@@ -1,0 +1,24 @@
+{
+  "name" : "jdbc_sink_crm",
+  "config" : {
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schemas.enable": "true",
+    "value.converter.schemas.enable": "true",
+    "key.converter.schema.registry.url": "http://localhost:8081",
+    "value.converter.schema.registry.url": "http://localhost:8081",
+    "connector.class" : "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "topics": "sink-erp-crm-customer",
+    "tasks.max" : "1",
+    "connection.url": "jdbc:mariadb://localhost:3308/crmSys",
+    "connection.user": "root",
+    "connection.password": "admin",
+    "dialect.name": "MySqlDatabaseDialect",
+    "insert.mode": "insert",
+    "delete.enabled": "false",
+    "table.name.format": "customer",
+    "db.timezone": "Europe/Berlin",
+    "auto.create": "false",
+    "auto.evolve": "false"
+  }
+}
