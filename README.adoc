@@ -22,7 +22,7 @@ Das Ziel dieser Thesis ist es zu untersuchen, wie ein Prozess in einer Anwendung
 Weitere Details finden sich in der Ausarbeitung dieser Thesis.
 
 == Prerequisites
-=== Credentials
+=== Credentials and Account Information
 This setup requires access to some credentials:
 
 *Adobe Magento Marketplace and Access Keys* +
@@ -30,7 +30,10 @@ This project requires the Magento extension `mageplaza/module-customer-approval`
 The access keys of your account need to be copied into a new file called `auth.json` within the `/magento` folder. A template for this file is available at `magento/auth.template.json`.
 
 *Mail Account Information* +
-The Magento web shop sends multiple mails to customers and administrators, e.g., when a new customer registers or to confirm a mail address. Therefore, this project requires at least four different mail accounts: three mail accounts for customers and one administrator mail account. All e-mails will be sent via the administrator mail account. + 
+The Magento web shop sends multiple mails to customers and administrators, e.g., when a new customer registers or to confirm a mail address. Therefore, this project requires at least four different mail accounts: three mail accounts for customers and one administrator mail account. All e-mails will be sent via the administrator mail account.
+
+*Important*: For a full running demo, the mail adresses within the file `legacy-system/db/docker-entrypoint-initdb.d/01-testdata.sql` need to be replaced by two of your own mail adresses.
+
 For the sake of simplicity, this project uses the mail server of Gmail. In order to configure Magento accordingly, the mail address and password of a Gmail account needs to be known. The security preferences of the Gmail account must allow connections from Magento.
 
 === Technical Prerequisites
@@ -256,7 +259,7 @@ mariadb -h localhost -P 3307 -u root -p erpSys
 
 UPDATE customer
 SET Taxvat = "1122334455"
-WHERE Email = "nadja.hagen@novatec-gmbh.de";
+WHERE Email = "firstuser@example.com";
 -----
 
 List all Kafka topics or open a Kafka console consumer:
